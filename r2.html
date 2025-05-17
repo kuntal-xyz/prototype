@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title> Symptom Checker Chatbot</title>
+<style>
+      /* Reset and base */
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+      Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    background: #f2f7fb;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  #chatbot-container {
+    width: 350px;
+    max-height: 600px;
+    background: #fff;
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #chat-header {
+    background: #007bff;
+    color: white;
+    padding: 16px 20px;
+    font-size: 1.25rem;
+    font-weight: 600;
+    text-align: center;
+    user-select: none;
+  }
+  #chat-messages {
+    flex: 1;
+    padding: 16px 12px 8px 12px;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+  }
+  .message {
+    max-width: 80%;
+    margin-bottom: 12px;
+    line-height: 1.3;
+    padding: 10px 14px;
+    border-radius: 18px;
+    font-size: 0.9rem;
+    word-wrap: break-word;
+  }
+  .bot-message {
+    background: #e1f0ff;
+    color: #045293;
+    border-bottom-left-radius: 4px;
+    align-self: flex-start;
+  }
+  .user-message {
+    background: #007bff;
+    color: white;
+    border-bottom-right-radius: 4px;
+    align-self: flex-end;
+  }
+  #input-area {
+    padding: 12px 10px;
+    background: #f5f8ff;
+    border-top: 1px solid #ddd;
+    display: flex;
+    gap: 8px;
+  }
+  #user-input {
+    flex: 1;
+    font-size: 1rem;
+    padding: 10px 14px;
+    border: 1.5px solid #ccc;
+    border-radius: 22px;
+    outline-offset: 2px;
+    transition: border-color 0.3s ease;
+  }
+  #user-input:focus {
+    border-color: #007bff;
+  }
+  #send-btn {
+    background: #007bff;
+    border: none;
+    border-radius: 22px;
+    color: white;
+    font-weight: 600;
+    font-size: 1rem;
+    padding: 0 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #send-btn:disabled {
+    background: #b0d1ff;
+    cursor: default;
+  }
+  #disclaimer {
+    background: #fff8e1;
+    color: #8a6d1b;
+    font-size: 0.8rem;
+    padding: 8px 16px;
+    border-top: 1px solid #dccf7a;
+    text-align: center;
+    user-select: none;
+  }
+  #emergency-btn {
+    margin-top: 4px;
+    background: #d32f2f;
+    border: none;
+    padding: 5px 12px;
+    color: white;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  /* Emergency contacts modal */
+  #emergency-modal {
+    position: fixed;
+    top: 0; left: 0; right:0; bottom:0;
+    background: rgba(0,0,0,0.4);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  #emergency-content {
+    background: white;
+    width: 90%;
+    max-width: 320px;
+    border-radius: 16px;
+    padding: 20px 28px 24px 28px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+  }
+  #emergency-content h2 {
+    margin-top: 0;
+    color: #d32f2f;
+    font-weight: 700;
+    text-align:center;
+  }
+  #emergency-content ul {
+    padding-left: 20px;
+    margin: 16px 0 24px 0;
+    line-height: 1.5;
+  }
+  #emergency-content ul li {
+    margin-bottom: 8px;
+  }
+  #close-emergency {
+    background: #d32f2f;
+    color: white;
+    border: none;
+    border-radius: 28px;
+    padding: 10px 0;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+  }
+  /* Scrollbar styling */
+  #chat-messages::-webkit-scrollbar {
+    width: 6px;
+  }
+  #chat-messages::-webkit-scrollbar-thumb {
+    background: #007bff66;
+    border-radius: 20px;
+  }
+  .button-link {
+    display: inline-block;
+    background-color: #007bff;
+    color: white;
+    padding: 1px 10px;
+    border-radius: 5px;
+    text-align: center;
+    text-decoration: none;
+}
+.button-link:hover{
+    background-color: #d32f2f;
+}
+  @media(max-width: 400px) {
+    #chatbot-container {
+      width: 95vw;
+      max-height: 95vh;
+      border-radius: 12px;
+    }
+  }
+
+</style>
+</head>
+<body>
+
+<div id="chatbot-container" role="main" aria-label="Symptom Checker Chatbot">
+  <div id="chat-header" aria-live="polite">Symptom Checker Chatbot</div>
+  <div id="chat-messages" aria-live="polite" aria-atomic="false"></div>
+  <div id="input-area">
+    <input type="text" id="user-input" placeholder="Type your answer here..." autocomplete="off" aria-label="Your message" />
+    <button id="send-btn" aria-label="Send message">Send</button>
+  </div>
+  <div id="disclaimer">
+    I am a friendly chatbot and not a substitute for professional medical advice. If you feel seriously unwell, please consult a doctor or emergency services.
+    <br/><button id="emergency-btn" aria-label="Show emergency contact information">Emergency Contacts</button>
+  </div>
+</div>
+
+<!-- Emergency Contacts Modal -->
+<div id="emergency-modal" role="dialog" aria-modal="true" aria-labelledby="emergency-title" aria-describedby="emergency-desc">
+  <div id="emergency-content">
+    <h2 id="emergency-title">Emergency Contacts</h2>
+    <ul id="emergency-desc">
+      <li><a href="tel:102" class="button-link">Emergency Ambulance</a></li>
+      <li><a href="tel:+911126588707" class="button-link">Poison Control</a></li>
+      <li><a href="tel:112" class="button-link">Local Hospital</a></li>
+    </ul>
+    <button id="close-emergency">Close</button>
+  </div>
+</div>
+
+<script>
+
+(() => {
+    const messagesEl = document.getElementById("chat-messages");
+    const inputEl = document.getElementById("user-input");
+    const sendBtn = document.getElementById("send-btn");
+    const emergencyBtn = document.getElementById("emergency-btn");
+    const emergencyModal = document.getElementById("emergency-modal");
+    const closeEmergencyBtn = document.getElementById("close-emergency");
+
+    // Helper: add a message to chat
+    function addMessage(text, fromBot = true) {
+      const msg = document.createElement("div");
+      msg.classList.add("message");
+      msg.classList.add(fromBot ? "bot-message" : "user-message");
+      msg.textContent = text;
+      messagesEl.appendChild(msg);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+   // Disable controls during bot thinking, enable after
+    function setInteractionEnabled(enabled) {
+      inputEl.disabled = !enabled;
+      sendBtn.disabled = !enabled;
+      if(enabled) inputEl.focus();
+    }
+
+    // Normalize user input answer
+    function normalizeInput(input) {
+      return input.trim().toLowerCase();
+    }
+
+    // Yes answers set
+    const yesAnswers = new Set(["yes","y","yeah","yep","yup","hope","sure","correct","exactly","indeed"]);
+    // No answers set
+    const noAnswers = new Set(["no","n","nope","nah","never","not"]);
+
+    // Greeting answers set
+    const greetingInputs = new Set(["hi","hello","hey","good morning","good afternoon","good evening"]);
+
+    // Symptom checker decision tree states and handlers
+    const dialogues = {
+      start: {
+        text: "Hi!  I am here to help you understand your symptoms. What main symptom are you experiencing? (fever, cold, headache, allergies)",
+        handler: function(input) {
+          input = normalizeInput(input);
+          if(greetingInputs.has(input)) {
+            return "Hello! Please let me know what main symptom you are experiencing? (fever, cold, headache, allergies)";
+          }
+          if(input.includes("fever")){
+            currentState = "fever_temp";
+            return "What is your temperature roughly? (choose: low, moderate, high)";
+          }
+          else if(input.includes("cold")){
+            currentState = "cold_symptoms";
+            return "Do you have a runny nose or sneezing? (yes/no)";
+          }
+          else if(input.includes("headache")){
+            currentState = "headache_type";
+            return "Is your headache mild, moderate, or severe?";
+          }
+          else if(input.includes("allergy") || input.includes("allergies")){
+            currentState = "allergy_symptoms";
+            return "Are you experiencing sneezing or itchy eyes? (yes/no)";
+          }
+          else {
+            return "Sorry, I didn't quite catch that. Please type fever, cold, headache, or allergies.";
+          }
+        }
+      },
+      fever_temp: {
+    text: "",
+    handler: function(input){
+        input = normalizeInput(input);
+        if(input === "low"){
+            currentIllness = "Mild fever";
+            currentState = "fever_other_symptoms";
+            return "Do you have chills or sweating? (yes/no)";
+        }
+        else if(input === "moderate"){
+            currentIllness = "Moderate fever";
+            currentState = "fever_other_symptoms";
+            return "Do you have chills or sweating? (yes/no)";
+        }
+        else if(input === "high"){
+            currentIllness = "High fever";
+            currentState = "fever_other_symptoms";
+            return "Do you have chills or sweating? (yes/no)";
+        }
+        else {
+            return "Please answer low, moderate or high for temperature.";
+        }
+    }
+},
+
+      fever_other_symptoms: {
+        text: "",
+        handler: function(input){
+          input = normalizeInput(input);
+          if(yesAnswers.has(input) || noAnswers.has(input)){
+            currentState = "fever_severity";
+            return "Do you feel very weak, dizzy, or confused? (yes/no)";
+          }
+          else {
+            return "Please answer yes or no.";
+          }
+        }
+      },
+      fever_severity: {
+    text: "",
+    handler: function(input){
+        input = normalizeInput(input);
+        
+        if(yesAnswers.has(input)){
+            currentSeverity = "severe";
+            currentState = "final_advice";
+            
+            if(currentIllness === "High fever") {
+                return "Your symptoms indicate a high risk. Please see a doctor immediately.";
+            }
+            else if(currentIllness === "Moderate fever") {
+                return "You have a moderate fever with concerning symptoms. It's best to see a healthcare professional.";
+            }
+            else {
+                return "You have a mild fever, but your symptoms are more concerning. Please monitor closely or see a doctor.";
+            }
+        }
+        else if(noAnswers.has(input)){
+            currentSeverity = "mild";
+            currentState = "final_advice";
+            
+            if(currentIllness === "High fever") {
+                return "High fever without other severe symptoms can still be serious. Rest, hydrate, and consider seeking medical advice.";
+            }
+            else if(currentIllness === "Moderate fever") {
+                return "Moderate fever can be managed with rest, hydration, and over-the-counter medication like paracetamol. If symptoms worsen, consult a doctor.";
+            }
+            else {
+                return "For mild fever, rest well and stay hydrated. Use paracetamol for discomfort. If it worsens, consult a doctor.";
+            }
+        }
+        else {
+            return "Please answer yes or no.";
+        }
+    }
+},
+
+      cold_symptoms: {
+    text: "",
+    handler: function(input){
+        input = normalizeInput(input);
+        if(yesAnswers.has(input)){
+            currentIllness = "Common Cold";
+            currentState = "cold_specifics";
+            return "Are you also experiencing a sore throat, cough, or chest congestion? (yes/no)";
+        }
+        else if(noAnswers.has(input)){
+            currentIllness = "Mild Cold";
+            currentSeverity = "mild";
+            currentState = "final_advice";
+            return "It seems like a mild cold. Rest, stay hydrated, and avoid cold environments. If symptoms worsen, consult a doctor.";
+        }
+        else {
+            return "Please answer yes or no.";
+        }
+    }
+},
+
+      cold_specifics: {
+    text: "",
+    handler: function(input){
+        input = normalizeInput(input);
+        if(yesAnswers.has(input)){
+            currentState = "cold_duration";
+            return "How long have you had these symptoms? (less than 7 days / more than 7 days)";
+        }
+        else if(noAnswers.has(input)){
+            currentSeverity = "mild";
+            currentState = "final_advice";
+            return "It sounds like a mild cold. Rest and stay hydrated. If symptoms persist or worsen, see a doctor.";
+        }
+        else {
+            return "Please answer yes or no.";
+        }
+    }
+},
+      cold_duration: {
+    text: "",
+    handler: function(input){
+        input = normalizeInput(input);
+        
+        if(input.includes("less") || input.includes("under") || input.includes("few") || input.includes("6") || input.includes("week")){
+            currentSeverity = "mild";
+            currentState = "final_advice";
+            return "You likely have a mild common cold. Rest, drink warm fluids, and avoid cold environments. If symptoms last more than 7 days or worsen, see a doctor.";
+        }
+        else if(input.includes("more") || input.includes("longer") || input.includes("over") || input.includes("7") || input.includes("8") || input.includes("week")){
+            currentSeverity = "severe";
+            currentState = "final_advice";
+            return "Cold symptoms lasting more than 7 days may indicate a secondary infection or more serious illness. Please consider seeing a healthcare professional.";
+        }
+        else {
+            return "Please answer with less than 7 days or more than 7 days.";
+        }
+    }
+},
+     headache_type: {
+    text: "",
+    handler: function(input){
+        input = normalizeInput(input);
+        if(input.includes("mild")){
+            currentIllness = "Mild Headache";
+            currentState = "headache_duration";
+            return "Is this headache recent or recurring? (recent/recurring)";
+        }
+        else if(input.includes("moderate")){
+            currentIllness = "Moderate Headache";
+            currentState = "headache_duration";
+            return "Is this headache recent or recurring? (recent/recurring)";
+        }
+        else if(input.includes("severe")){
+            currentIllness = "Severe Headache";
+            currentState = "headache_additional";
+            return "Are you experiencing nausea, vision problems, or weakness? (yes/no)";
+        }
+        else {
+            return "Please answer mild, moderate, or severe.";
+        }
+    }
+},
+     headache_duration: {
+    text: "",
+    handler: function(input){
+        input = normalizeInput(input);
+        if(input.includes("recent")){
+            currentSeverity = "mild";
+            currentState = "final_advice";
+            return "Rest and hydrate well. If the headache lasts more than a few days or worsens, consider seeing a doctor.";
+        }
+        else if(input.includes("recurring")){
+            currentSeverity = "moderate";
+            currentState = "headache_triggers";
+            return "Do you notice any triggers, like stress, lack of sleep, or screen time? (yes/no)";
+        }
+        else {
+            return "Please answer recent or recurring.";
+        }
+    }
+},
+      headache_triggers: {
+    text: "",
+    handler: function(input){
+        input = normalizeInput(input);
+        if(yesAnswers.has(input)){
+            currentSeverity = "moderate";
+            currentState = "final_advice";
+            return "Try reducing known triggers, manage stress, and consider using over-the-counter pain relievers. If the headaches persist, see a doctor.";
+        }
+        else if(noAnswers.has(input)){
+            currentSeverity = "moderate";
+            currentState = "final_advice";
+            return "Recurring headaches without clear triggers should be evaluated by a healthcare professional.";
+        }
+        else {
+            return "Please answer yes or no.";
+        }
+    }
+},
+      headache_additional: {
+    text: "",
+    handler: function(input){
+        input = normalizeInput(input);
+        if(yesAnswers.has(input)){
+            currentSeverity = "severe";
+            currentState = "final_advice";
+            return "Severe headache with other symptoms may indicate a serious condition like a migraine or neurological issue. Please seek medical attention immediately.";
+        }
+        else if(noAnswers.has(input)){
+            currentSeverity = "moderate";
+            currentState = "final_advice";
+            return "Monitor your symptoms closely and visit a doctor if they worsen or new symptoms develop.";
+        }
+        else {
+            return "Please answer yes or no.";
+        }
+    }
+},
+      allergy_symptoms: {
+    text: "",
+    handler: function(input){
+        input = normalizeInput(input);
+        if(yesAnswers.has(input)){
+            currentIllness = "Allergic Reaction";
+            currentState = "allergy_detail";
+            return "Are you experiencing coughing, throat irritation, or mild shortness of breath? (yes/no)";
+        }
+        else if(noAnswers.has(input)){
+            currentIllness = "Mild Allergy";
+            currentState = "final_advice";
+            return "Avoid allergens if possible and use antihistamines if needed. See a doctor if symptoms worsen.";
+        }
+        else {
+            return "Please answer yes or no.";
+        }
+    }
+},
+allergy_detail: {
+    text: "",
+    handler: function(input){
+        input = normalizeInput(input);
+        if(yesAnswers.has(input)){
+            currentSeverity = "moderate";
+            currentState = "allergy_severity";
+            return "Are you experiencing rash, swelling, or difficulty breathing? (yes/no)";
+        }
+        else if(noAnswers.has(input)){
+            currentSeverity = "mild";
+            currentState = "final_advice";
+            return "This seems like a mild allergy. Avoid the allergen and use antihistamines if needed. See a doctor if it worsens.";
+        }
+        else {
+            return "Please answer yes or no.";
+        }
+    }
+},
+allergy_severity: {
+    text: "",
+    handler: function(input){
+        input = normalizeInput(input);
+        if(yesAnswers.has(input)){
+            currentSeverity = "severe";
+            currentState = "final_advice";
+            return "This may be a serious allergic reaction. Call emergency services or see a doctor immediately.";
+        }
+        else if(noAnswers.has(input)){
+            currentSeverity = "moderate";
+            currentState = "final_advice";
+            return "Monitor your symptoms closely and consider seeing a doctor if they worsen.";
+        }
+        else {
+            return "Please answer yes or no.";
+        }
+    }
+},
+      final_advice: {
+        text: "",
+        handler: function() {
+          currentState = "reset_prompt";
+          return "Thank you for using the Symptom Checker Chatbot. Remember, this is not a substitute for professional medical advice. Stay safe and take care! Would you like to start over? (yes/no)";
+        }
+      },
+      reset_prompt: {
+        text: "",
+        handler: function(input){
+          input = normalizeInput(input);
+          if(yesAnswers.has(input)){
+            startConversation();
+            return "";
+          } else if(noAnswers.has(input)){
+            currentState = "conversation_end";
+            return "Thank you! If you need further assistance, just refresh the page or reopen the chatbot.";
+          } else {
+            return "Please answer yes or no.";
+          }
+        }
+      },
+      conversation_end: {
+        text: "",
+        handler: function() {
+          setInteractionEnabled(false);
+          return "";
+        }
+      }
+    };
+
+    // Variables to store state
+    let currentState = "start";
+    let currentIllness = "";
+    let currentSeverity = "";
+
+    // Initialize conversation
+    function startConversation() {
+      messagesEl.innerHTML = "";
+      addMessage(dialogues.start.text);
+      setInteractionEnabled(true);
+      currentState = "start";
+      currentIllness = "";
+      currentSeverity = "";
+    }
+
+    // Handle user input and advance dialogue
+    function handleUserInput(inputText) {
+      if (!inputText) return;
+      addMessage(inputText, false);
+      setInteractionEnabled(false);
+
+      // Delay bot response to simulate typing
+      setTimeout(() => {
+        const dialogueObj = dialogues[currentState];
+        if (!dialogueObj) {
+          addMessage("Sorry, I encountered an error.");
+          setInteractionEnabled(false);
+          return;
+        }
+
+        const response = dialogueObj.handler(inputText);
+        if(response) {
+          addMessage(response);
+        }
+
+        if(currentState === "conversation_end"){
+          setInteractionEnabled(false);
+        } else if(currentState !== "reset_prompt"){
+          setInteractionEnabled(true);
+        } else {
+          // Keep interaction enabled during reset_prompt so user can reply yes/no
+          setInteractionEnabled(true);
+        }
+      }, 80);
+    }
+
+    // Event listeners
+    sendBtn.addEventListener("click", () => {
+      const val = inputEl.value;
+      if (val.trim() !== "") {
+        handleUserInput(val);
+        inputEl.value = "";
+      }
+    });
+
+    inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        sendBtn.click();
+      }
+    });
+
+    // Emergency modal events
+    emergencyBtn.addEventListener("click", () => {
+      emergencyModal.style.display = "flex";
+      closeEmergencyBtn.focus();
+    });
+    closeEmergencyBtn.addEventListener("click", () => {
+      emergencyModal.style.display = "none";
+      inputEl.focus();
+    });
+    window.addEventListener("click", (e) => {
+      if(e.target === emergencyModal){
+        emergencyModal.style.display = "none";
+        inputEl.focus();
+      }
+    });
+    window.addEventListener("keydown", (e) => {
+      if(e.key === "Escape" && emergencyModal.style.display === "flex"){
+        emergencyModal.style.display = "none";
+        inputEl.focus();
+      }
+    });
+
+    // Start chatbot
+    startConversation();
+
+  })();
+
+</script>
+</body>
+</html>
+
